@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ошибка во время активации вашей учетной записи!</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 4em;
+      text-align: center;
+      animation: shake 2s linear both;
+      animation-delay: 0.5s;
+      text-shadow: 2px 2px 4px #bb4b4b;
+    }
+
+    @keyframes shake {
+      0% { transform: translateX(0); text-shadow: 8px 8px 16px #bb4b4b; }
+      10%, 90% { transform: translateX(-10px); text-shadow: 24px 24px 32px #bb4b4b; }
+      20%, 80% { transform: translateX(10px); text-shadow: 32px 32px 48px #bb4b4b; }
+      30%, 50%, 70% { transform: translateX(-10px); text-shadow: 48px 48px 64px #bb4b4b; }
+      40%, 60% { transform: translateX(10px); text-shadow: 64px 64px 80px #bb4b4b; }
+      100% { transform: translateX(0); text-shadow: 8px 8px 16px #bb4b4b; }
+    }
+	
+	body.error {
+      background-color: #000;
+      color: #fff;
+    }
+
+    h1.error {
+      animation: shake 1.0s linear both;
+      animation-delay: 0s;
+    }
+  </style>
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.location.href = "https://t.me/common_notification_system_bot";
+      }, 2000);
+    };
+  </script>
+</head>
+<body class="error">
+  <h1 class="error">Ошибка во время активации вашей учетной записи!</h1>
+</body>
+</html>
