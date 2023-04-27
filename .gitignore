@@ -39,3 +39,6 @@ build/
 
 ### Logs ###
 logs/
+
+### Secrets###
+client_secret.json
