@@ -38,7 +38,7 @@ public class ChannelManager {
         this.applicationName = applicationName;
     }
 
-    public YouTube getService(Credential credential) {
+    private YouTube getService(Credential credential) {
         return new YouTube.Builder(httpTransport, jsonFactory, credential)
                 .setApplicationName(applicationName)
                 .build();
@@ -68,9 +68,14 @@ public class ChannelManager {
                 continue;
             }
 
-            response.getItems().forEach(subscription -> {
-                addSubscriptionToNotify(appUser, subscription.getSnippet().getResourceId().getChannelId(), subscription.getSnippet().getTitle());
-            });
+            for(var subscription : response.getItems()) {
+                try {
+                    addSubscriptionToNotify(appUser, subscription.getSnippet().getResourceId().getChannelId(), subscription.getSnippet().getTitle());
+                } catch (IOException e) {
+                    isAllSuccessful = false;
+                    log.error(e);
+                }
+            }
 
             nextPageToken = response.getNextPageToken();
         } while (nextPageToken != null);
@@ -79,24 +84,28 @@ public class ChannelManager {
     }
 
     @Transactional
-    public String addSubscriptionToNotifyFromUrl(AppUser appUser, String url) {
+    public String addSubscriptionToNotifyFromUrl(AppUser appUser, String url) throws IOException {
         String channelId;
-        channelId = channelUtils.getChannelIdFromUrl(url).orElse(null);
-        if(channelId == null) {
+        try {
+            channelId = channelUtils.getChannelIdFromUrl(url).orElse(null);
+        } catch (IOException e) {
             return "Некорректная ссылка!";
+        }
+        if(channelId == null) {
+            return "Ссылка ведёт не на YouTube канал!";
         }
         return addSubscriptionToNotify(appUser, channelId);
     }
 
-    private String addSubscriptionToNotify(AppUser appUser, String channelId) {
+    private String addSubscriptionToNotify(AppUser appUser, String channelId) throws IOException {
         String channelName = channelUtils.getChannelName(channelId).orElse(null);
         if(channelName == null) {
-            log.error("Incorrect request for channel with id=" + channelId);
-            return "Ошибка на стороне сервера!";
+            log.error("Can't get channel name with that channel id: " + channelId);
+            return "Произошла ошибка на стороне сервера, пожалуйста свяжитесь с поддержкой!";
         }
         return addSubscriptionToNotify(appUser, channelId, channelName);
     }
-    private String addSubscriptionToNotify(AppUser appUser, String channelId, String channelName) {
+    private String addSubscriptionToNotify(AppUser appUser, String channelId, String channelName) throws IOException {
         YouTubeChannel persistentYoutubeChannel = findOrSaveYouTubeChannel(channelId, channelName);
 
         if(persistentYoutubeChannel.getAppUsers() == null) {
@@ -111,7 +120,7 @@ public class ChannelManager {
         return "Успех! Теперь вы будете получать уведомления об этом канале!";
     }
 
-    private YouTubeChannel findOrSaveYouTubeChannel(String channelId, String channelName) {
+    private YouTubeChannel findOrSaveYouTubeChannel(String channelId, String channelName) throws IOException {
         var optional = youtubeChannelDAO.findByYoutubeChannelId(channelId);
         if(optional.isEmpty()) {
             var latestVideoId = channelUtils.getLastVideoId(channelId).orElse(null);

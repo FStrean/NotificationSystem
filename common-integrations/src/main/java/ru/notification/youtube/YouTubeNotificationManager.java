@@ -6,6 +6,7 @@ import ru.notification.dao.YouTubeChannelDAO;
 import ru.notification.entity.YouTubeChannel;
 import ru.notification.youtube.utils.ChannelUtils;
 
+import java.io.IOException;
 import java.util.*;
 
 @Service
@@ -32,7 +33,13 @@ public class YouTubeNotificationManager {
 
     private boolean isUpdated(YouTubeChannel youTubeChannel) {
         String channelId = youTubeChannel.getYoutubeChannelId();
-        String latestVideoId = channelUtils.getLastVideoId(channelId).orElse(null);
+        String latestVideoId;
+        try {
+            latestVideoId = channelUtils.getLastVideoId(channelId).orElse(null);
+        } catch (IOException e) {
+            log.error(e);
+            return false;
+        }
 
         if (latestVideoId != null && !latestVideoId.equals(getStoredVideoId(youTubeChannel))) {
             storeVideoId(youTubeChannel, latestVideoId);

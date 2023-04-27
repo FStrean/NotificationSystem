@@ -15,6 +15,7 @@ import ru.notification.service.enums.ServiceCommand;
 import ru.notification.youtube.ChannelManager;
 import ru.notification.youtube.OAuthManager;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -69,6 +70,9 @@ public class MainServiceImpl implements MainService {
                 log.debug("Unknown user state: " + userState);
                 output = "Необработанное состояние пользователя " + userState + ", пожалуйста, свяжитесь с поддержкой!";
             }
+        } catch (IOException e) {
+            output = "Произошла ошибка на стороне сервера, пожалуйста свяжитесь с поддержкой для ее решения!";
+            log.error(e);
         } catch (Exception e) {
             output = "Произошла неизвестная ошибка! Пожалуйста свяжитесь с поддержкой для ее решения!";
             log.error(e);

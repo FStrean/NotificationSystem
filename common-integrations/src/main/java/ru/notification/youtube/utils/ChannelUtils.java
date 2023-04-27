@@ -22,13 +22,9 @@ public class ChannelUtils {
     }
 
     //TODO сделать проверку, чтобы проверялся хост, а то описанный здесь тег может быть и на других сайтах. В ChatGpt уже есть заготовка
-    public Optional<String> getChannelIdFromUrl(String url) {
-        Document document;
-        try {
-            document = Jsoup.connect(url).get();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
+    //TODO не самый надежный метод получения id и возможно не самый быстрый, так как приходится загружать полностью html код страницы, было бы неплохо переделать
+    public Optional<String> getChannelIdFromUrl(String url) throws IOException {
+        Document document = Jsoup.connect(url).get();
         Element metaTag = document.select("meta[itemprop=channelId]").first();
 
         if (metaTag == null) {
@@ -38,17 +34,14 @@ public class ChannelUtils {
         return Optional.of(metaTag.attr("content"));
     }
 
-    public Optional<String> getChannelName(String channelId) {
+    public Optional<String> getChannelName(String channelId) throws IOException {
         ChannelListResponse channelListResponse;
-        try {
-            YouTube.Channels.List channelsListRequest = apiEntry.channels().list("snippet");
-            channelsListRequest.setId(channelId);
-            channelListResponse = channelsListRequest.execute();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
+        YouTube.Channels.List channelsListRequest = apiEntry.channels().list("snippet");
+        channelsListRequest.setId(channelId);
+        channelListResponse = channelsListRequest.execute();
         List<Channel> channelList = channelListResponse.getItems();
 
+        //TODO этот сценарий, по идее, никогда не произойдет. Только если channelId будет неверным, а неверным он может быть только в том случае, если метода который парсит ссылку на канал станет не рабочим, поэтому как только я сделаю его более универсальным, было бы неплохо убрать эту проверку
         if (channelList.isEmpty()) {
             return Optional.empty();
         }
@@ -70,18 +63,13 @@ public class ChannelUtils {
     }
 
     //Uses YouTube Data API to fetch last video
-    public Optional<String> getLastVideoId(String channelId) {
-        PlaylistItemListResponse playlistItemListResponse;
-        try {
-            var playListId = getUploadPlaylistId(channelId);
-            playlistItemListResponse = apiEntry.playlistItems()
-                    .list("contentDetails")
-                    .setPlaylistId(playListId)
-                    .setMaxResults(1L)
-                    .execute();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
+    public Optional<String> getLastVideoId(String channelId) throws IOException {
+        var playListId = getUploadPlaylistId(channelId);
+        PlaylistItemListResponse playlistItemListResponse = apiEntry.playlistItems()
+                .list("contentDetails")
+                .setPlaylistId(playListId)
+                .setMaxResults(1L)
+                .execute();
         List<PlaylistItem> playlistItems = playlistItemListResponse.getItems();
         if (playlistItems.isEmpty()) {
             return Optional.empty();
