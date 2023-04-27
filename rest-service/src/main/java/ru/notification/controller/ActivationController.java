@@ -1,6 +1,7 @@
 package ru.notification.controller;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.notification.service.UserActivationService;
 
@@ -14,13 +15,15 @@ public class ActivationController {
     }
 
     @GetMapping("/activation")
-    public String activation(@RequestParam("id") String id) {
+    public String activation(@RequestParam("id") String id, Model model) {
         var res = userActivationService.activation(id);
         if (res) {
             //TODO сделать так, чтобы при активации/не активации сообщение о результате отправлял бот, а ссылка активации открывала бота
-            return "activation_success";
+            model.addAttribute("message", "Ваша учетная запись активирована");
+            return "success";
         }
         //TODO поработать над ошибками и сделать advice controller
-        return "activation_error";
+        model.addAttribute("message", "Ошибка во время активации вашей учетной записи!");
+        return "error";
     }
 }
