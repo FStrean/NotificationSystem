@@ -6,6 +6,7 @@ import lombok.extern.log4j.Log4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -22,32 +23,18 @@ public class ChannelUtils {
     }
 
     //TODO сделать проверку, чтобы проверялся хост, а то описанный здесь тег может быть и на других сайтах. В ChatGpt уже есть заготовка
-    //TODO не самый надежный метод получения id и возможно не самый быстрый, так как приходится загружать полностью html код страницы, было бы неплохо переделать
-    public Optional<String> getChannelIdFromUrl(String url) throws IOException {
+    //TODO (В данный момент это никак не сделать) не самый надежный метод получения id и возможно не самый быстрый,
+    // так как приходится загружать полностью html код страницы, было бы неплохо переделать
+    public Optional<Pair<String, String>> getChannelIdAndNameFromUrl(String url) throws IOException {
         Document document = Jsoup.connect(url).get();
-        Element metaTag = document.select("meta[itemprop=channelId]").first();
+        Element metaTagForId = document.select("meta[itemprop=channelId]").first();
+        Element metaTagForName = document.select("meta[itemprop=name]").first();
 
-        if (metaTag == null) {
+        if (metaTagForId == null || metaTagForName == null) {
             return Optional.empty();
         }
 
-        return Optional.of(metaTag.attr("content"));
-    }
-
-    public Optional<String> getChannelName(String channelId) throws IOException {
-        ChannelListResponse channelListResponse;
-        YouTube.Channels.List channelsListRequest = apiEntry.channels().list("snippet");
-        channelsListRequest.setId(channelId);
-        channelListResponse = channelsListRequest.execute();
-        List<Channel> channelList = channelListResponse.getItems();
-
-        //TODO этот сценарий, по идее, никогда не произойдет. Только если channelId будет неверным, а неверным он может быть только в том случае, если метода который парсит ссылку на канал станет не рабочим, поэтому как только я сделаю его более универсальным, было бы неплохо убрать эту проверку
-        if (channelList.isEmpty()) {
-            return Optional.empty();
-        }
-
-        ChannelSnippet channelSnippet = channelList.get(0).getSnippet();
-        return Optional.of(channelSnippet.getTitle());
+        return Optional.of(Pair.of(metaTagForId.attr("content"), metaTagForName.attr("content")));
     }
 
     private String getUploadPlaylistId(String channelId) throws IOException {

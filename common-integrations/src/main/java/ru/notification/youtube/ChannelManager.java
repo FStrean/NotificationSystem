@@ -6,6 +6,7 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.SubscriptionListResponse;
 import lombok.extern.log4j.Log4j;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.notification.dao.AppUserDAO;
@@ -85,26 +86,18 @@ public class ChannelManager {
 
     @Transactional
     public String addSubscriptionToNotifyFromUrl(AppUser appUser, String url) throws IOException {
-        String channelId;
+        Pair<String, String> channelIdAndName;
         try {
-            channelId = channelUtils.getChannelIdFromUrl(url).orElse(null);
+            channelIdAndName = channelUtils.getChannelIdAndNameFromUrl(url).orElse(null);
         } catch (IOException e) {
             return "Некорректная ссылка!";
         }
-        if(channelId == null) {
+        if(channelIdAndName == null) {
             return "Ссылка ведёт не на YouTube канал!";
         }
-        return addSubscriptionToNotify(appUser, channelId);
+        return addSubscriptionToNotify(appUser, channelIdAndName.getFirst(), channelIdAndName.getSecond());
     }
 
-    private String addSubscriptionToNotify(AppUser appUser, String channelId) throws IOException {
-        String channelName = channelUtils.getChannelName(channelId).orElse(null);
-        if(channelName == null) {
-            log.error("Can't get channel name with that channel id: " + channelId);
-            return "Произошла ошибка на стороне сервера, пожалуйста свяжитесь с поддержкой!";
-        }
-        return addSubscriptionToNotify(appUser, channelId, channelName);
-    }
     private String addSubscriptionToNotify(AppUser appUser, String channelId, String channelName) throws IOException {
         YouTubeChannel persistentYoutubeChannel = findOrSaveYouTubeChannel(channelId, channelName);
 
