@@ -1,7 +1,7 @@
 package ru.notification.service;
 
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import ru.notification.entity.YouTubeChannel;
 
 public interface NotificationProducer {
-    void produceNotification(SendMessage sendMessage);
+    void produceNotification(YouTubeChannel channel);
 }

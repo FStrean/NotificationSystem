@@ -2,6 +2,8 @@ package ru.notification.utils;
 
 import org.hashids.Hashids;
 
+import java.util.Optional;
+
 public class CryptoTool {
     private final Hashids hashids;
 
@@ -14,11 +16,11 @@ public class CryptoTool {
         return hashids.encode(value);
     }
 
-    public Long idOf(String value) {
+    public Optional<Long> idOf(String value) {
         long[] res = hashids.decode(value);
         if (res != null && res.length > 0) {
-            return res[0];
+            return Optional.of(res[0]);
         }
-        return null;
+        return Optional.empty();
     }
 }

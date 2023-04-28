@@ -19,7 +19,10 @@ public class UserActivationServiceImpl implements UserActivationService {
     public boolean activation(String cryptoUserId) {
         //TODO сделать расшифровку id и проверять время, когда оно было создано и если прошло слишком много времени, то не активировать
         var userId = cryptoTool.idOf(cryptoUserId);
-        var optional = appUserDAO.findById(userId);
+        if(userId.isEmpty()) {
+            return false;
+        }
+        var optional = appUserDAO.findById(userId.get());
         if (optional.isPresent()) {
             var user = optional.get();
             user.setIsActive(true);
