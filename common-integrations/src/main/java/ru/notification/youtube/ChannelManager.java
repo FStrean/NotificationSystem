@@ -89,7 +89,7 @@ public class ChannelManager {
         Pair<String, String> channelIdAndName;
         try {
             channelIdAndName = channelUtils.getChannelIdAndNameFromUrl(url).orElse(null);
-        } catch (IOException e) {
+        } catch (IllegalArgumentException e) {
             return "Некорректная ссылка!";
         }
         if(channelIdAndName == null) {
