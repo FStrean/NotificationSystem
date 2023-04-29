@@ -24,12 +24,13 @@ public class WebhookUpdateReceivedController {
     @PostMapping("/youtube")
     public ResponseEntity<?> onYouTubeUpdateReceived(@RequestBody YouTubeVideoParams youTubeVideoParams) {
         YouTubeChannel channel = youTubeChannelDAO.findByYoutubeChannelId(youTubeVideoParams.getChannelId()).orElse(null);
-        if(channel != null && (channel.getLastVideoId() == null || !channel.getLastVideoId().equals(youTubeVideoParams.getVideoId()))) {
+        if(channel == null) {
+            return ResponseEntity.internalServerError().build();
+        } else if (channel.getLastVideoId() == null || !channel.getLastVideoId().equals(youTubeVideoParams.getVideoId())) {
             channel.setLastVideoId(youTubeVideoParams.getVideoId());
             notificationProducer.produceNotification(youTubeChannelDAO.save(channel));
-            return ResponseEntity.ok().build();
         }
-        log.debug("Some error");
-        return ResponseEntity.internalServerError().build();
+
+        return ResponseEntity.ok().build();
     }
 }
