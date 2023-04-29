@@ -6,9 +6,16 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.SubscriptionListResponse;
 import lombok.extern.log4j.Log4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.util.Pair;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 import ru.notification.dao.AppUserDAO;
 import ru.notification.dao.YouTubeChannelDAO;
 import ru.notification.entity.AppUser;
@@ -29,6 +36,10 @@ public class ChannelManager {
     private final NetHttpTransport httpTransport;
     private final JsonFactory jsonFactory;
     private final String applicationName;
+    @Value("${youtube.monitor.uri}")
+    private String youtubeMonitorUri;
+    @Value("${youtube.pubsubhubbub.uri}")
+    private String pubSubHubbubUri;
 
     public ChannelManager(ChannelUtils channelUtils, YouTubeChannelDAO youtubeChannelDAO, AppUserDAO appUserDAO, NetHttpTransport httpTransport, JsonFactory jsonFactory, String applicationName) {
         this.channelUtils = channelUtils;
@@ -43,6 +54,27 @@ public class ChannelManager {
         return new YouTube.Builder(httpTransport, jsonFactory, credential)
                 .setApplicationName(applicationName)
                 .build();
+    }
+
+    private MultiValueMap<String, String> getPubSubHubbubBody(String channelId) {
+        MultiValueMap<String, String> body= new LinkedMultiValueMap<>();
+        body.add("hub.callback", youtubeMonitorUri);
+        body.add("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId);
+        body.add("hub.verify", "async");
+
+        return body;
+    }
+
+    public void subscribeToPubSubHubbub(YouTubeChannel channel) {
+        MultiValueMap<String, String> body= getPubSubHubbubBody(channel.getYoutubeChannelId());
+        body.add("hub.mode", "subscribe");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+        restTemplate.postForEntity(pubSubHubbubUri, request , String.class);
     }
 
     @Transactional
@@ -105,7 +137,7 @@ public class ChannelManager {
             persistentYoutubeChannel.setAppUsers(new HashSet<>());
         }
         persistentYoutubeChannel.getAppUsers().add(appUser);
-        youtubeChannelDAO.save(persistentYoutubeChannel);
+        subscribeToPubSubHubbub(youtubeChannelDAO.save(persistentYoutubeChannel));
 
         appUser.setState(UserState.BASIC_STATE);
         appUserDAO.save(appUser);

@@ -27,7 +27,7 @@ public class YouTubeConfiguration {
     private static final String APPLICATION_NAME = "Notification";
     private static final String CLIENT_SECRETS_FILE = "/client_secret.json";
     private static final List<String> SCOPES = List.of("https://www.googleapis.com/auth/youtube.readonly");
-    @Value("${youtube-api-key}")
+    @Value("${youtube.api.key}")
     private String apiKey;
 
     @Bean
