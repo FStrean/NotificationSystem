@@ -45,6 +45,9 @@ public class NotificationWebhookController {
 
         Feed feed = youTubeXmlFeedHandler.getFeed();
         Entry entry = feed.getEntry();
+        if(entry == null) {
+            return ResponseEntity.ok().build();
+        }
 
         String channelId = entry.getYt_channelId();
         String videoId = entry.getYt_videoId();
