@@ -4,7 +4,6 @@ import lombok.extern.log4j.Log4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -13,18 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import ru.notification.dao.YouTubeChannelDAO;
-import ru.notification.entity.AppUser;
 import ru.notification.entity.YouTubeChannel;
-import ru.notification.service.NotificationProcessor;
 import ru.notification.service.NotificationProducer;
 import ru.notification.service.UpdateService;
-import ru.notification.util.CustomJackson2HttpMessageConverter;
 import ru.notification.youtube.YouTubeNotificationManager;
 
-import java.util.HashMap;
 import java.util.List;
 
 
