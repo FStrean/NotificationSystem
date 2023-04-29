@@ -7,6 +7,7 @@ import ru.notification.dao.YouTubeChannelDAO;
 import ru.notification.dto.YouTubeVideoParams;
 import ru.notification.entity.YouTubeChannel;
 import ru.notification.service.NotificationProducer;
+import ru.notification.youtube.ChannelManager;
 
 @Log4j
 @RestController
@@ -14,18 +15,20 @@ import ru.notification.service.NotificationProducer;
 public class WebhookUpdateReceivedController {
     private final YouTubeChannelDAO youTubeChannelDAO;
     private final NotificationProducer notificationProducer;
+    private final ChannelManager channelManager;
 
-    public WebhookUpdateReceivedController(YouTubeChannelDAO youTubeChannelDAO, NotificationProducer notificationProducer) {
+    public WebhookUpdateReceivedController(YouTubeChannelDAO youTubeChannelDAO, NotificationProducer notificationProducer, ChannelManager channelManager) {
         this.youTubeChannelDAO = youTubeChannelDAO;
         this.notificationProducer = notificationProducer;
+        this.channelManager = channelManager;
     }
 
-    //TODO если канал не был найден, значит по какой-то причине, когда от него отписались все пользователи, но мы не отписались от вебхука
     @PostMapping("/youtube")
     public ResponseEntity<?> onYouTubeUpdateReceived(@RequestBody YouTubeVideoParams youTubeVideoParams) {
         YouTubeChannel channel = youTubeChannelDAO.findByYoutubeChannelId(youTubeVideoParams.getChannelId()).orElse(null);
         if(channel == null) {
-            return ResponseEntity.internalServerError().build();
+            log.error("monitor-service: Channel with id " + youTubeVideoParams.getChannelId() + " was not found");
+            channelManager.unSubscribeFromPubSubHubbub(youTubeVideoParams.getChannelId());
         } else if (channel.getLastVideoId() == null || !channel.getLastVideoId().equals(youTubeVideoParams.getVideoId())) {
             channel.setLastVideoId(youTubeVideoParams.getVideoId());
             notificationProducer.produceNotification(youTubeChannelDAO.save(channel));

@@ -65,16 +65,27 @@ public class ChannelManager {
         return body;
     }
 
-    public void subscribeToPubSubHubbub(YouTubeChannel channel) {
-        MultiValueMap<String, String> body= getPubSubHubbubBody(channel.getYoutubeChannelId());
-        body.add("hub.mode", "subscribe");
-
+    private void sendPubSubHubbubRequest(MultiValueMap<String, String> body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         RestTemplate restTemplate = new RestTemplate();
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
         restTemplate.postForEntity(pubSubHubbubUri, request , String.class);
+    }
+
+    public void subscribeToPubSubHubbub(String channelId) {
+        MultiValueMap<String, String> body= getPubSubHubbubBody(channelId);
+        body.add("hub.mode", "subscribe");
+
+        sendPubSubHubbubRequest(body);
+    }
+
+    public void unSubscribeFromPubSubHubbub(String channelId) {
+        MultiValueMap<String, String> body= getPubSubHubbubBody(channelId);
+        body.add("hub.mode", "unsubscribe");
+
+        sendPubSubHubbubRequest(body);
     }
 
     @Transactional
@@ -137,7 +148,7 @@ public class ChannelManager {
             persistentYoutubeChannel.setAppUsers(new HashSet<>());
         }
         persistentYoutubeChannel.getAppUsers().add(appUser);
-        subscribeToPubSubHubbub(youtubeChannelDAO.save(persistentYoutubeChannel));
+        subscribeToPubSubHubbub(youtubeChannelDAO.save(persistentYoutubeChannel).getYoutubeChannelId());
 
         appUser.setState(UserState.BASIC_STATE);
         appUserDAO.save(appUser);
