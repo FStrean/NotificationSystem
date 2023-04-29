@@ -33,7 +33,7 @@ public class YoutubeUpdateService implements UpdateService {
 
     @Scheduled(fixedDelayString = "${pubsubhubbub.youtube.resub.interval}")
     public void updateYouTubePubSubHubbubSubscriptions() {
-        youTubeChannelDAO.findAll().forEach(channelManager::subscribeToPubSubHubbub);
+        youTubeChannelDAO.findAll().forEach(channel -> channelManager.subscribeToPubSubHubbub(channel.getYoutubeChannelId()));
     }
 
     @Override
