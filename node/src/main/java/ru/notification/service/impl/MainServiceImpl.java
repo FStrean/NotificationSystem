@@ -1,8 +1,10 @@
 package ru.notification.service.impl;
 
 import lombok.extern.log4j.Log4j;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import ru.notification.dao.AppUserDAO;
 import ru.notification.dao.RawDataDAO;
@@ -16,7 +18,9 @@ import ru.notification.youtube.ChannelManager;
 import ru.notification.youtube.OAuthManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static ru.notification.entity.enums.UserState.*;
@@ -56,16 +60,18 @@ public class MainServiceImpl implements MainService {
         var userState = appUser.getState();
         var text = update.getMessage().getText();
         var output = "";
+        var chatId = update.getMessage().getChatId();
         var serviceCommand = ServiceCommand.fromValue(text);
         try {
             if (CANCEL.equals(serviceCommand)) {
                 output = cancelProcess(appUser);
-            } else if (BASIC_STATE.equals(userState)) {
-                output = processServiceCommand(appUser, serviceCommand);
             } else if (WAIT_FOR_EMAIL_STATE.equals(userState)) {
                 output = appUserService.setEmail(appUser, text);
             } else if (WAIT_FOR_YOUTUBE_LINK_STATE.equals(userState)) {
                 output = channelManager.addSubscriptionToNotifyFromUrl(appUser, text);
+            } else if (BASIC_STATE.equals(userState)) {
+                sendAnswer(processServiceCommand(appUser, serviceCommand));
+                return;
             } else {
                 log.debug("Unknown user state: " + userState);
                 output = "Необработанное состояние пользователя " + userState + ", пожалуйста, свяжитесь с поддержкой!";
@@ -78,43 +84,74 @@ public class MainServiceImpl implements MainService {
             log.error(e);
         }
 
-        var chatId = update.getMessage().getChatId();
-        sendAnswer(output, chatId);
+        sendAnswer(createBasicAnswer(output, chatId));
     }
 
-    private void sendAnswer(String output, Long chatId) {
-        var sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId);
-        sendMessage.setText(output);
+
+    private void sendAnswer(SendMessage sendMessage) {
         producerService.produceAnswer(sendMessage);
     }
 
-    private String processServiceCommand(AppUser appUser, ServiceCommand cmd) {
+    private SendMessage createBasicAnswer(String output, Long chatId) {
+        var sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(output);
+        return sendMessage;
+    }
+
+    private SendMessage createShowAllYouTubeSubscriptionsAnswer(List<Pair<String, String>> channels, Long chatId) {
+        var sendMessage = new SendMessage();
+        sendMessage.setChatId(chatId);
+        StringBuilder text = new StringBuilder();
+        List<MessageEntity> messageEntities = new ArrayList<>();
+
+        for(var channel : channels) {
+            var messageEntity = new MessageEntity();
+            messageEntity.setType("text_link");
+            messageEntity.setText(channel.getFirst());
+            messageEntity.setUrl(channel.getSecond());
+            messageEntity.setOffset(text.length());
+            messageEntity.setLength(channel.getFirst().length());
+
+            text.append(channel.getFirst());
+
+            messageEntities.add(messageEntity);
+
+            text.append("\n");
+        }
+        sendMessage.setEntities(messageEntities);
+        sendMessage.setText(text.toString());
+        return sendMessage;
+    }
+
+    private SendMessage processServiceCommand(AppUser appUser, ServiceCommand cmd) {
         if (REGISTRATION.equals(cmd)) {
-            return appUserService.registerUser(appUser);
+            return createBasicAnswer(appUserService.registerUser(appUser), appUser.getChatId());
         } else if (HELP.equals(cmd)) {
-            return helpList;
+            return createBasicAnswer(helpList, appUser.getChatId());
         } else if (START.equals(cmd)) {
-            return "Приветствую! Чтобы посмотреть список доступных команд введите /help";
+            return createBasicAnswer("Приветствую! Чтобы посмотреть список доступных команд введите /help", appUser.getChatId());
         } else {
             return processAnotherServiceCommand(appUser, cmd);
         }
     }
 
-    private String processAnotherServiceCommand(AppUser appUser, ServiceCommand cmd) {
+    private SendMessage processAnotherServiceCommand(AppUser appUser, ServiceCommand cmd) {
         var result = checkIfAllowedToProcess(appUser);
         if (!result.isEmpty()) {
-            return result;
+            return createBasicAnswer(result, appUser.getChatId());
         }
 
         if (YOUTUBE_ADD.equals(cmd)) {
             appUser.setState(WAIT_FOR_YOUTUBE_LINK_STATE);
             appUserDAO.save(appUser);
-            return "Введите ссылку на канал, о котором хотите получать уведомления";
+            return createBasicAnswer("Введите ссылку на канал, о котором хотите получать уведомления", appUser.getChatId());
         } else if (YOUTUBE_AUTHORIZE.equals(cmd)) {
-            return "Перейдите по ссылке: " + oAuthManager.getAuthorizeLink(appUser);
+            return createBasicAnswer("Перейдите по ссылке: " + oAuthManager.getAuthorizeLink(appUser), appUser.getChatId());
+        } else if(YOUTUBE_ALL.equals(cmd)) {
+            return createShowAllYouTubeSubscriptionsAnswer(channelManager.getAllSubscriptions(appUser), appUser.getChatId());
         } else {
-            return "Неизвестная команда! Чтобы посмотреть список доступных команд введите /help";
+            return createBasicAnswer("Неизвестная команда! Чтобы посмотреть список доступных команд введите /help", appUser.getChatId());
         }
     }
 

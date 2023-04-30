@@ -50,37 +50,42 @@ public class ChannelUtils {
     }
 
     //Uses YouTube Data API to fetch last video
-//    public Optional<String> getLastVideoId(String channelId) throws IOException {
-//        var playListId = getUploadPlaylistId(channelId);
-//        PlaylistItemListResponse playlistItemListResponse = apiEntry.playlistItems()
-//                .list("contentDetails")
-//                .setPlaylistId(playListId)
-//                .setMaxResults(1L)
-//                .execute();
-//        List<PlaylistItem> playlistItems = playlistItemListResponse.getItems();
-//        if (playlistItems.isEmpty()) {
-//            return Optional.empty();
-//        }
-//        PlaylistItem playlistItem = playlistItems.get(0);
-//
-//        return Optional.of(playlistItem.getContentDetails().getVideoId());
-//    }
+    public Optional<String> getLastVideoId(String channelId) throws IOException {
+        var playListId = getUploadPlaylistId(channelId);
+        YouTube.PlaylistItems.List playlistItemList = apiEntry.playlistItems()
+                .list("contentDetails")
+                .setPlaylistId(playListId)
+                .setMaxResults(1L);
+        PlaylistItemListResponse playlistItemListResponse;
+        try {
+            playlistItemListResponse = playlistItemList.execute();
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+        List<PlaylistItem> playlistItems = playlistItemListResponse.getItems();
+        if (playlistItems.isEmpty()) {
+            return Optional.empty();
+        }
+        PlaylistItem playlistItem = playlistItems.get(0);
+
+        return Optional.of(playlistItem.getContentDetails().getVideoId());
+    }
 
     //Gets videos with parsing YouTube videos page
-    public Optional<String> getLastVideoId(String channelId) throws IOException {
-        String channelUrl = "https://www.youtube.com/channel/" + channelId + "/videos";
-        Document document;
-        document = Jsoup.connect(channelUrl).get();
-        String pageSource = document.outerHtml();
-        String videoIdTag = "\"videoId\":";
-        int index = pageSource.indexOf(videoIdTag);
-        if (index != -1) {
-            int endIndex = pageSource.indexOf("\"", index + videoIdTag.length() + 1);
-            if (endIndex != -1) {
-                String videoId = pageSource.substring(index + videoIdTag.length() + 1, endIndex);
-                return Optional.of(videoId);
-            }
-        }
-        return Optional.empty();
-    }
+//    public Optional<String> getLastVideoId(String channelId) throws IOException {
+//        String channelUrl = "https://www.youtube.com/channel/" + channelId + "/videos";
+//        Document document;
+//        document = Jsoup.connect(channelUrl).get();
+//        String pageSource = document.outerHtml();
+//        String videoIdTag = "\"videoId\":";
+//        int index = pageSource.indexOf(videoIdTag);
+//        if (index != -1) {
+//            int endIndex = pageSource.indexOf("\"", index + videoIdTag.length() + 1);
+//            if (endIndex != -1) {
+//                String videoId = pageSource.substring(index + videoIdTag.length() + 1, endIndex);
+//                return Optional.of(videoId);
+//            }
+//        }
+//        return Optional.empty();
+//    }
 }

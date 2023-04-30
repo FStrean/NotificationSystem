@@ -26,6 +26,8 @@ import ru.notification.youtube.utils.ChannelUtils;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j
@@ -36,7 +38,7 @@ public class ChannelManager {
     private final NetHttpTransport httpTransport;
     private final JsonFactory jsonFactory;
     private final String applicationName;
-    @Value("${youtube.monitor.uri}")
+    @Value("${youtube.webhook.uri}")
     private String youtubeMonitorUri;
     @Value("${youtube.pubsubhubbub.uri}")
     private String pubSubHubbubUri;
@@ -48,30 +50,6 @@ public class ChannelManager {
         this.httpTransport = httpTransport;
         this.jsonFactory = jsonFactory;
         this.applicationName = applicationName;
-    }
-
-    private YouTube getService(Credential credential) {
-        return new YouTube.Builder(httpTransport, jsonFactory, credential)
-                .setApplicationName(applicationName)
-                .build();
-    }
-
-    private MultiValueMap<String, String> getPubSubHubbubBody(String channelId) {
-        MultiValueMap<String, String> body= new LinkedMultiValueMap<>();
-        body.add("hub.callback", youtubeMonitorUri);
-        body.add("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId);
-        body.add("hub.verify", "async");
-
-        return body;
-    }
-
-    private void sendPubSubHubbubRequest(MultiValueMap<String, String> body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        RestTemplate restTemplate = new RestTemplate();
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-        restTemplate.postForEntity(pubSubHubbubUri, request , String.class);
     }
 
     public void subscribeToPubSubHubbub(String channelId) {
@@ -88,7 +66,14 @@ public class ChannelManager {
         sendPubSubHubbubRequest(body);
     }
 
-    @Transactional
+    public List<Pair<String, String>> getAllSubscriptions(AppUser appUser) {
+        return youtubeChannelDAO
+                .findAllByAppUsersContains(appUser)
+                .stream()
+                .map(channel -> Pair.of(channel.getChannelName(), "https://www.youtube.com/channel/" + channel.getYoutubeChannelId()))
+                .collect(Collectors.toList());
+    }
+
     public boolean addSubscriptionsToNotifyFromChannel(AppUser appUser, Credential credential) {
         YouTube youtubeService = getService(credential);
         YouTube.Subscriptions.List request;
@@ -127,7 +112,6 @@ public class ChannelManager {
         return isAllSuccessful;
     }
 
-    @Transactional
     public String addSubscriptionToNotifyFromUrl(AppUser appUser, String url) throws IOException {
         Pair<String, String> channelIdAndName;
         try {
@@ -171,5 +155,30 @@ public class ChannelManager {
         }
 
         return optional.get();
+    }
+
+
+    private YouTube getService(Credential credential) {
+        return new YouTube.Builder(httpTransport, jsonFactory, credential)
+                .setApplicationName(applicationName)
+                .build();
+    }
+
+    private MultiValueMap<String, String> getPubSubHubbubBody(String channelId) {
+        MultiValueMap<String, String> body= new LinkedMultiValueMap<>();
+        body.add("hub.callback", youtubeMonitorUri);
+        body.add("hub.topic", "https://www.youtube.com/xml/feeds/videos.xml?channel_id=" + channelId);
+        body.add("hub.verify", "async");
+
+        return body;
+    }
+
+    private void sendPubSubHubbubRequest(MultiValueMap<String, String> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        RestTemplate restTemplate = new RestTemplate();
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+        restTemplate.postForEntity(pubSubHubbubUri, request , String.class);
     }
 }
