@@ -5,7 +5,6 @@ import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.xml.sax.SAXException;
-import ru.notification.dto.MailParams;
 import ru.notification.dto.YouTubeVideoParams;
 import ru.notification.utils.xml.youtube.Entry;
 import ru.notification.utils.xml.youtube.Feed;
@@ -21,30 +20,20 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/notification")
-public class NotificationWebhookController {
+@RequestMapping("/notification/youtube")
+public class YouTubeNotificationWebhookController {
     @Value("${service.monitor.youtube.uri}")
     private String youTubeMonitorServiceUri;
 
     @ResponseBody
-    @GetMapping("/youtube/callback")
+    @GetMapping("/callback")
     public String onSubscribe(@RequestParam Map<String, String> allRequestParams){
         return allRequestParams.get("hub.challenge");
     }
-    @PostMapping(value = "/youtube/callback", consumes = { MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE, MediaType.APPLICATION_JSON_VALUE },
+    @PostMapping(value = "/callback", consumes = { MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE, MediaType.APPLICATION_JSON_VALUE },
             produces = { MediaType.APPLICATION_XML_VALUE, MediaType.APPLICATION_ATOM_XML_VALUE, MediaType.APPLICATION_JSON_VALUE })
-    public ResponseEntity<?> onYoutubeVideoPublished(@RequestBody String update) throws ParserConfigurationException, SAXException, IOException {
-        System.out.println(update);//TODO обрабатывать только запросы о новых видео(приходят уведомления об изменениях в видео)
-        SAXParserFactory factory = SAXParserFactory.newInstance();
-        SAXParser saxParser = factory.newSAXParser();
-
-        InputStream stream = new ByteArrayInputStream(update.getBytes(StandardCharsets.UTF_8));
-
-        YouTubeXmlFeedHandler youTubeXmlFeedHandler = new YouTubeXmlFeedHandler();
-        saxParser.parse(stream, youTubeXmlFeedHandler);
-
-        Feed feed = youTubeXmlFeedHandler.getFeed();
-        Entry entry = feed.getEntry();
+    public ResponseEntity<String> onYoutubeVideoPublished(@RequestBody String update) throws ParserConfigurationException, SAXException, IOException {
+        Entry entry = parseXml(update);
         if(entry == null) {
             return ResponseEntity.ok().build();
         }
@@ -52,6 +41,23 @@ public class NotificationWebhookController {
         String channelId = entry.getYt_channelId();
         String videoId = entry.getYt_videoId();
 
+        return sendRequest(channelId, videoId);
+    }
+
+    private Entry parseXml(String xml) throws ParserConfigurationException, SAXException, IOException {
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+        SAXParser saxParser = factory.newSAXParser();
+
+        InputStream stream = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
+
+        YouTubeXmlFeedHandler youTubeXmlFeedHandler = new YouTubeXmlFeedHandler();
+        saxParser.parse(stream, youTubeXmlFeedHandler);
+
+        Feed feed = youTubeXmlFeedHandler.getFeed();
+        return feed.getEntry();
+    }
+
+    private ResponseEntity<String> sendRequest(String channelId, String videoId) {
         var restTemplate = new RestTemplate();
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
