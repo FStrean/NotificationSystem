@@ -119,8 +119,12 @@ public class MainServiceImpl implements MainService {
 
             text.append("\n");
         }
-        sendMessage.setEntities(messageEntities);
-        sendMessage.setText(text.toString());
+        if(text.isEmpty()) {
+            sendMessage.setText("Ваш список подписок пуст!");
+        } else {
+            sendMessage.setText(text.toString());
+            sendMessage.setEntities(messageEntities);
+        }
         return sendMessage;
     }
 
