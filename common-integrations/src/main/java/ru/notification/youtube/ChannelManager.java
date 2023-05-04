@@ -12,7 +12,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -27,6 +26,7 @@ import ru.notification.youtube.utils.ChannelUtils;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Service
@@ -84,7 +84,7 @@ public class ChannelManager {
         }
         request.setMine(true);
         request.setMaxResults(50L);
-        boolean isAllSuccessful = true;
+        AtomicBoolean isAllSuccessful = new AtomicBoolean(true);
 
         String nextPageToken = "";
         do {
@@ -93,23 +93,24 @@ public class ChannelManager {
             try {
                 response = request.execute();
             } catch (IOException e) {
-                isAllSuccessful = false;
+                isAllSuccessful.set(false);
                 continue;
             }
 
-            for(var subscription : response.getItems()) {
+            response.getItems().parallelStream().forEach(subscription -> {
                 try {
-                    addSubscriptionToNotify(appUser, subscription.getSnippet().getResourceId().getChannelId(), subscription.getSnippet().getTitle());
+                    addSubscriptionToNotify(appUser, subscription.getSnippet().getResourceId().getChannelId(),
+                            subscription.getSnippet().getTitle());
                 } catch (IOException e) {
-                    isAllSuccessful = false;
+                    isAllSuccessful.set(false);
                     log.error(e);
                 }
-            }
+            });
 
             nextPageToken = response.getNextPageToken();
         } while (nextPageToken != null);
 
-        return isAllSuccessful;
+        return isAllSuccessful.get();
     }
 
     public String addSubscriptionToNotifyFromUrl(AppUser appUser, String url) throws IOException {
